@@ -1,4 +1,7 @@
 #include <algorithm>
+#include <array>
+#include <optional>
+#include <vector>
 #include <cmath>
 #include <cstring>
 
@@ -933,9 +936,60 @@ void SetUiAnchor(const UiAnchor &anchor) { g.ui_anchor = anchor; }
 
 UiAnchor CurrentUiAnchor() { return g.ui_anchor; }
 
+namespace {
+
+std::optional<LogicalRect> g_draw_clip;
+std::optional<std::array<float, 4>> g_draw_tint;
+
+} // namespace
+
+void SetDrawClip(const LogicalRect *clip) {
+    if (clip != nullptr) {
+        g_draw_clip = *clip;
+    } else {
+        g_draw_clip.reset();
+    }
+}
+
+void SetDrawTint(const float (*tint)[4]) {
+    if (tint != nullptr) {
+        g_draw_tint = std::array<float, 4>{(*tint)[0], (*tint)[1], (*tint)[2], (*tint)[3]};
+    } else {
+        g_draw_tint.reset();
+    }
+}
+
 void Draw2D(Primitive primitive, std::span<const Vertex2D> vertices, const TextureBinding &binding,
             const DrawState &state) {
     if (vertices.empty()) {
+        return;
+    }
+    if (g_draw_tint) {
+        std::vector<Vertex2D> tinted(vertices.begin(), vertices.end());
+        for (Vertex2D &vertex : tinted) {
+            for (int c = 0; c < 4; c++) {
+                vertex.color[c] = static_cast<uint8_t>(std::clamp(vertex.color[c] * (*g_draw_tint)[c] + 0.5f, 0.0f, 255.0f));
+            }
+        }
+        const std::optional<std::array<float, 4>> keep = g_draw_tint;
+        g_draw_tint.reset();
+        Draw2D(primitive, tinted, binding, state);
+        g_draw_tint = keep;
+        return;
+    }
+    if (g_draw_clip) {
+        DrawState clipped = state;
+        const LogicalRect own = state.scissor ? state.scissor_rect : LogicalRect{0.0f, 0.0f, kLogicalWidth, kLogicalHeight};
+        const float       left = std::max(own.x, g_draw_clip->x);
+        const float       top = std::max(own.y, g_draw_clip->y);
+        const float       right = std::min(own.x + own.w, g_draw_clip->x + g_draw_clip->w);
+        const float       bottom = std::min(own.y + own.h, g_draw_clip->y + g_draw_clip->h);
+        if (right <= left || bottom <= top) {
+            return;
+        }
+        clipped.scissor = true;
+        clipped.scissor_rect = {left, top, right - left, bottom - top};
+        Draw2DSided(primitive, vertices, binding, clipped, AnchoredSide(vertices));
         return;
     }
     Draw2DSided(primitive, vertices, binding, state, AnchoredSide(vertices));

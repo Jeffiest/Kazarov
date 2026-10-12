@@ -8,6 +8,7 @@
 #include <charconv>
 #include <cmath>
 #include <cstdio>
+#include <map>
 #include <numbers>
 #include <optional>
 #include <string>
@@ -1355,6 +1356,24 @@ bool InputHostPressed(InputHostAction action) {
     }
     --presses;
     return true;
+}
+
+bool InputDevKeyHeld(std::string_view name) {
+    const int scancode = InputScancodeFromName(name);
+    return scancode >= 0 && scancode < static_cast<int>(std::size(g_keys)) && g_keys[scancode];
+}
+
+bool InputDevKeyPressed(std::string_view name) {
+    static std::map<int, bool> held;
+    const int                  scancode = InputScancodeFromName(name);
+    if (scancode < 0 || scancode >= static_cast<int>(std::size(g_keys))) {
+        return false;
+    }
+    bool &before = held[scancode];
+    const bool now = g_keys[scancode];
+    const bool pressed = now && !before;
+    before = now;
+    return pressed;
 }
 
 void InputSetScriptedDevices(const InputKeyboardMouse &held) {
