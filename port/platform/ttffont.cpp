@@ -1,6 +1,7 @@
 #include "platform/ttffont.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <fstream>
 #include <map>
@@ -280,6 +281,128 @@ bool Compose(char32_t ch, float scale, int em_px, Bitmap &out) {
     return false;
 }
 
+// Squared distance to the nearest 1 in a row or column of a grid (Felzenszwalb and Huttenlocher): `f` holds 0 where
+// the shape is and a huge value elsewhere, and comes back as the squared distance to the shape along that line.
+void DistanceLine(std::vector<float> &f, std::vector<int> &v, std::vector<float> &z, std::vector<float> &out) {
+    const int n = static_cast<int>(f.size());
+    int       k = 0;
+    v[0] = 0;
+    z[0] = -1e30f;
+    z[1] = 1e30f;
+    for (int q = 1; q < n; q++) {
+        float s;
+        for (;;) {
+            const int p = v[static_cast<size_t>(k)];
+            s = ((f[static_cast<size_t>(q)] + static_cast<float>(q * q)) - (f[static_cast<size_t>(p)] + static_cast<float>(p * p))) /
+                (2.0f * static_cast<float>(q - p));
+            if (s <= z[static_cast<size_t>(k)] && k > 0) {
+                k--;
+            } else {
+                break;
+            }
+        }
+        k++;
+        v[static_cast<size_t>(k)] = q;
+        z[static_cast<size_t>(k)] = s;
+        z[static_cast<size_t>(k) + 1] = 1e30f;
+    }
+    k = 0;
+    for (int q = 0; q < n; q++) {
+        while (z[static_cast<size_t>(k) + 1] < static_cast<float>(q)) {
+            k++;
+        }
+        const int p = v[static_cast<size_t>(k)];
+        out[static_cast<size_t>(q)] = static_cast<float>((q - p) * (q - p)) + f[static_cast<size_t>(p)];
+    }
+}
+
+// The letter's coverage grown by `radius` pixels in every direction: a round stroke round the shape, as far from
+// the letter as the pixel's true distance to it, so the edge is smooth at any radius.
+Bitmap Dilate(const Bitmap &in, int radius) {
+    if (radius <= 0 || in.w <= 0 || in.h <= 0) {
+        return in;
+    }
+    Bitmap out;
+    const int pad = radius + 1;
+    out.x0 = in.x0 - pad;
+    out.y0 = in.y0 - pad;
+    out.w = in.w + 2 * pad;
+    out.h = in.h + 2 * pad;
+    const int            W = out.w, H = out.h;
+    const float          kFar = 1e12f;
+    std::vector<float>   grid(static_cast<size_t>(W) * H, kFar);
+    for (int row = 0; row < in.h; row++) {
+        for (int col = 0; col < in.w; col++) {
+            if (in.alpha[static_cast<size_t>(row) * in.w + col] >= 128) {
+                grid[static_cast<size_t>(row + pad) * W + col + pad] = 0.0f;
+            }
+        }
+    }
+    const int          longest = std::max(W, H);
+    std::vector<float> line(static_cast<size_t>(longest)), result(static_cast<size_t>(longest)), z(static_cast<size_t>(longest) + 1);
+    std::vector<int>   v(static_cast<size_t>(longest));
+    for (int col = 0; col < W; col++) {
+        line.resize(static_cast<size_t>(H));
+        for (int row = 0; row < H; row++) {
+            line[static_cast<size_t>(row)] = grid[static_cast<size_t>(row) * W + col];
+        }
+        DistanceLine(line, v, z, result);
+        for (int row = 0; row < H; row++) {
+            grid[static_cast<size_t>(row) * W + col] = result[static_cast<size_t>(row)];
+        }
+    }
+    for (int row = 0; row < H; row++) {
+        line.resize(static_cast<size_t>(W));
+        for (int col = 0; col < W; col++) {
+            line[static_cast<size_t>(col)] = grid[static_cast<size_t>(row) * W + col];
+        }
+        DistanceLine(line, v, z, result);
+        for (int col = 0; col < W; col++) {
+            grid[static_cast<size_t>(row) * W + col] = result[static_cast<size_t>(col)];
+        }
+    }
+    out.alpha.assign(static_cast<size_t>(W) * H, 0);
+    for (int row = 0; row < H; row++) {
+        for (int col = 0; col < W; col++) {
+            const float d = std::sqrt(grid[static_cast<size_t>(row) * W + col]);
+            float       cover = std::clamp(static_cast<float>(radius) + 0.5f - d, 0.0f, 1.0f) * 255.0f;
+            const int   src_row = row - pad, src_col = col - pad;
+            if (src_row >= 0 && src_row < in.h && src_col >= 0 && src_col < in.w) {
+                cover = std::max(cover, static_cast<float>(in.alpha[static_cast<size_t>(src_row) * in.w + src_col]));
+            }
+            out.alpha[static_cast<size_t>(row) * W + col] = static_cast<unsigned char>(cover + 0.5f);
+        }
+    }
+    return out;
+}
+
+// How far the pen moves after ch, in pixels at scale (pixels per font unit). A letter built from others
+// moves by its base letter's width.
+float AdvanceOf(char32_t ch, float scale) {
+    char32_t drawn = ch;
+    if (DrawnGlyph(ch) == 0) {
+        for (const Accented &accented : kAccented) {
+            if (accented.ch == ch) {
+                drawn = accented.base;
+            }
+        }
+        if (ch == U'\u00A1') {
+            drawn = U'!';
+        } else if (ch == U'\u00BF') {
+            drawn = U'?';
+        } else if (ch == U'\u0153' || ch == U'\u0152') {
+            drawn = ch == U'\u0153' ? U'o' : U'O';
+        }
+    }
+    int index = DrawnGlyph(drawn);
+    if (index == 0) {
+        index = stbtt_FindGlyphIndex(&g_font.info, static_cast<int>(drawn));
+    }
+    int advance = 0, bearing = 0;
+    stbtt_GetGlyphHMetrics(&g_font.info, index, &advance, &bearing);
+    return static_cast<float>(advance) * scale;
+}
+
 } // namespace
 
 bool Load(const std::filesystem::path &file) {
@@ -309,10 +432,14 @@ bool Loaded() {
 }
 
 bool GetGlyph(char32_t ch, int em_px, Glyph &out) {
-    if (!g_font.loaded || em_px < 4 || em_px > 512) {
+    return GetOutlinedGlyph(ch, em_px, 0, out);
+}
+
+bool GetOutlinedGlyph(char32_t ch, int em_px, int outline_px, Glyph &out) {
+    if (!g_font.loaded || em_px < 4 || em_px > 512 || outline_px < 0 || outline_px > 64) {
         return false;
     }
-    const auto key = std::make_pair(ch, em_px);
+    const auto key = std::make_pair(ch, em_px + outline_px * 1024);
     if (auto found = g_atlas.glyphs.find(key); found != g_atlas.glyphs.end()) {
         out = found->second;
         return true;
@@ -333,6 +460,10 @@ bool GetGlyph(char32_t ch, int em_px, Glyph &out) {
     } else if (!Compose(ch, scale, em_px, bitmap)) {
         g_atlas.missing[key] = true;
         return false;
+    }
+    const float advance = AdvanceOf(ch, scale);
+    if (outline_px > 0) {
+        bitmap = Dilate(bitmap, outline_px);
     }
     const int width = bitmap.w;
     const int height = bitmap.h;
@@ -360,6 +491,7 @@ bool GetGlyph(char32_t ch, int em_px, Glyph &out) {
     glyph.y_offset = static_cast<float>(bitmap.y0);
     glyph.width = static_cast<float>(width);
     glyph.height = static_cast<float>(height);
+    glyph.advance = advance;
 
     if (width > 0 && height > 0) {
         // White with the coverage as alpha, so the draw's vertex colour tints it.
@@ -415,7 +547,7 @@ gfx::TextureBinding Binding() {
 }
 
 Metrics GetMetrics() {
-    Metrics metrics = {0.8f, 0.2f, 0.6f};
+    Metrics metrics = {0.8f, 0.2f, 0.6f, 0.7f};
     if (!g_font.loaded) {
         return metrics;
     }
@@ -427,6 +559,10 @@ Metrics GetMetrics() {
     int advance, bearing;
     stbtt_GetCodepointHMetrics(&g_font.info, '0', &advance, &bearing);
     metrics.advance = static_cast<float>(advance) / em;
+    int x0, y0, x1, y1;
+    if (stbtt_GetCodepointBox(&g_font.info, 'H', &x0, &y0, &x1, &y1) != 0 && y1 > y0) {
+        metrics.cap = static_cast<float>(y1 - y0) / em;
+    }
     return metrics;
 }
 
