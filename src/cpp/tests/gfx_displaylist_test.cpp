@@ -12,7 +12,7 @@
 
 using namespace dc::test;
 
-TEST(GfxMeshDc2, InterpolatedOutlineEscapesNewestPartCrop) {
+TEST(GfxGpuMeshDc2, InterpolatedOutlineEscapesNewestPartCrop) {
     GfxOptions options;
     options.offscreen = true;
     options.prog0_meshes = true;
@@ -171,7 +171,7 @@ Coverage ReadCoverage(GfxFixture &fixture) {
 
 } // namespace
 
-TEST(GfxDisplayList, RecordingReservesPriorSizesWithoutRetainingCommands) {
+TEST(GfxGpuDisplayList, RecordingReservesPriorSizesWithoutRetainingCommands) {
     GfxFixture          fixture(kWidth, kHeight, 1.0f, Prog0Options());
     gfx::Prog0Constants constants = {};
     constants.flags = gfx::kProg0Unlit;
@@ -211,7 +211,7 @@ TEST(GfxDisplayList, RecordingReservesPriorSizesWithoutRetainingCommands) {
     EXPECT_EQ(after_empty->prog0_blocks.capacity(), 0u);
 }
 
-TEST(GfxDisplayList, RecordingReservationToleratesSmallGrowthAndResetsWithRenderer) {
+TEST(GfxGpuDisplayList, RecordingReservationToleratesSmallGrowthAndResetsWithRenderer) {
     {
         GfxFixture          fixture(kWidth, kHeight, 1.0f, Prog0Options());
         gfx::Prog0Constants constants = {};
@@ -241,7 +241,7 @@ TEST(GfxDisplayList, RecordingReservationToleratesSmallGrowthAndResetsWithRender
     }
 }
 
-TEST(GfxDisplayList, RecordingOverlayKeepsSeparateCapacityHistory) {
+TEST(GfxGpuDisplayList, RecordingOverlayKeepsSeparateCapacityHistory) {
     GfxFixture          fixture(kWidth, kHeight, 1.0f, Prog0Options());
     gfx::Prog0Constants constants{};
     gfx::BeginRecording();
@@ -308,7 +308,7 @@ TEST(GfxDisplayList, BonesBlendPerBoneAtHalf) {
     EXPECT_EQ(out.flags, after.flags);
 }
 
-TEST(GfxMeshDc2, SkinnedPaletteInterpolatesInDisplayFrame) {
+TEST(GfxGpuMeshDc2, SkinnedPaletteInterpolatesInDisplayFrame) {
     GfxFixture fixture(kWidth, kHeight, 1.0f, Prog0Options());
     const std::vector<gfx::Vertex3D> vertices =
         Skinned({Vert({-0.2f, -0.2f, 0.5f}, {0, 0, 1}), Vert({0.2f, -0.2f, 0.5f}, {0, 0, 1}),
@@ -370,7 +370,7 @@ TEST(GfxMeshDc2, SkinnedPaletteInterpolatesInDisplayFrame) {
 
 // A 16:9 window on the 4:3 logical frame leaves a 16 px bar at the right, which the right anchor
 // shifts the quad into.
-TEST(GfxMeshDc2, AnchoredScissorMovesWithTheDraw) {
+TEST(GfxGpuMeshDc2, AnchoredScissorMovesWithTheDraw) {
     constexpr int                kAnchorWidth = 128;
     constexpr int                kAnchorHeight = 72;
     constexpr uint32_t           kFrameRight = 112;
@@ -431,7 +431,7 @@ void DrawWindowRed(GfxFixture &fixture) {
 
 // The bars are cleared to black when the renderer makes the main target, and the frame's clear
 // and mesh must leave them that way.
-TEST(GfxMeshDc2, LetterboxClipsMeshesAndClearsToTheFrame) {
+TEST(GfxGpuMeshDc2, LetterboxClipsMeshesAndClearsToTheFrame) {
     constexpr int kLetterboxWidth = 128;
     constexpr int kLetterboxHeight = 72;
 
@@ -444,7 +444,7 @@ TEST(GfxMeshDc2, LetterboxClipsMeshesAndClearsToTheFrame) {
     gfx::SetFrameLayout(gfx::FrameLayout{gfx::AspectMode::Fill, 1.0f});
 }
 
-TEST(GfxMeshDc2, FillKeepsClearsAcrossTheWindow) {
+TEST(GfxGpuMeshDc2, FillKeepsClearsAcrossTheWindow) {
     constexpr int kFillWidth = 128;
     constexpr int kFillHeight = 72;
 
@@ -528,7 +528,7 @@ TEST(GfxDisplayList, Keyed2DRejectsReusedOrIncompatibleDraws) {
     }
 }
 
-TEST(GfxMisc, Keyed2DPresentationIsOptInAndCanonicalExact) {
+TEST(GfxGpuDisplayList, Keyed2DPresentationIsOptInAndCanonicalExact) {
     GfxFixture fixture(64, 48, 1.0f, true, 64, 48);
     auto       record = [&](float x, float y, uint8_t opacity, uint64_t generation, bool reverse, int cut) {
         gfx::BeginRecording();
@@ -587,7 +587,7 @@ TEST(GfxMisc, Keyed2DPresentationIsOptInAndCanonicalExact) {
 }
 
 // One shared model has several faces per placement; culling and sorting can reorder either.
-TEST(GfxMeshDc2, InstancedFacesKeepMeshAndTextureIdentity) {
+TEST(GfxGpuMeshDc2, InstancedFacesKeepMeshAndTextureIdentity) {
     GfxFixture                       fixture(kWidth, kHeight);
     const std::vector<gfx::Vertex3D> vertices = {
         Vert({-0.1f, -0.1f, 0.5f}, {0, 0, 1}), Vert({0.1f, -0.1f, 0.5f}, {0, 0, 1}),
@@ -648,7 +648,7 @@ TEST(GfxMeshDc2, InstancedFacesKeepMeshAndTextureIdentity) {
 
 // A newly visible (or material-cut) draw has no pose predecessor, but still belongs to the
 // interpolated camera. Its Prog0 clip planes must follow the same camera as its ordinary MVP.
-TEST(GfxMeshDc2, UnmatchedProg0ClipFollowsInterpolatedCamera) {
+TEST(GfxGpuMeshDc2, UnmatchedProg0ClipFollowsInterpolatedCamera) {
     GfxFixture                       fixture(kWidth, kHeight, 1.0f, Prog0Options());
     const std::vector<gfx::Vertex3D> vertices = {
         Vert({0.1f, -0.2f, 0.5f}, {0, 0, 1}), Vert({0.5f, -0.2f, 0.5f}, {0, 0, 1}),
@@ -686,7 +686,7 @@ TEST(GfxMeshDc2, UnmatchedProg0ClipFollowsInterpolatedCamera) {
     EXPECT_NEAR(display.x, coverage.x, 0.01);
 }
 
-TEST(GfxMeshDc2, TextureChangeCutsPoseMatching) {
+TEST(GfxGpuMeshDc2, TextureChangeCutsPoseMatching) {
     GfxFixture                       fixture(kWidth, kHeight);
     const std::vector<gfx::Vertex3D> vertices = {
         Vert({-0.1f, -0.1f, 0.5f}, {0, 0, 1}), Vert({0.1f, -0.1f, 0.5f}, {0, 0, 1}),
@@ -724,7 +724,7 @@ TEST(GfxMeshDc2, TextureChangeCutsPoseMatching) {
     gfx::DestroyTexture(texture_b);
 }
 
-TEST(GfxMeshDc2, MirroredInstancesAtSameOriginKeepHandedness) {
+TEST(GfxGpuMeshDc2, MirroredInstancesAtSameOriginKeepHandedness) {
     GfxFixture                       fixture(kWidth, kHeight);
     const std::vector<gfx::Vertex3D> vertices = {
         Vert({-0.1f, -0.1f, 0.5f}, {0, 0, 1}), Vert({0.1f, -0.1f, 0.5f}, {0, 0, 1}),
@@ -754,7 +754,7 @@ TEST(GfxMeshDc2, MirroredInstancesAtSameOriginKeepHandedness) {
 }
 
 // Tint changes presentation RGB only, including draws with no pose predecessor or transform.
-TEST(GfxMeshDc2, InterpolationTintClassifiesGeometryAndPreservesCanonical) {
+TEST(GfxGpuMeshDc2, InterpolationTintClassifiesGeometryAndPreservesCanonical) {
     GfxFixture                       fixture(kWidth, kHeight);
     const std::vector<gfx::Vertex3D> vertices = {
         Vert({-1, -1, 0.5f}, {0, 0, 1}), Vert({3, -1, 0.5f}, {0, 0, 1}),
@@ -814,7 +814,7 @@ TEST(GfxMeshDc2, InterpolationTintClassifiesGeometryAndPreservesCanonical) {
 }
 
 // Display diagnostics must not colour reusable targets that a later canonical tick can sample.
-TEST(GfxMeshDc2, InterpolationTintPreservesReusableTargetPixels) {
+TEST(GfxGpuMeshDc2, InterpolationTintPreservesReusableTargetPixels) {
     GfxFixture fixture(kWidth, kHeight);
     const auto target = gfx::CreateRenderTarget(640, 480, true, true);
     ASSERT_NE(target, gfx::kNullTexture);
@@ -879,7 +879,7 @@ TEST(GfxDisplayList, WorldSpriteInterpolatesMotionDepthAndCamera) {
     EXPECT_EQ(std::memcmp(result.data(), after.vertices.data(), result.size() * sizeof(result[0])), 0);
 }
 
-TEST(GfxMisc, WorldSpriteRecordingBlendsOwnMotionAndKeepsCanonicalExact) {
+TEST(GfxGpuDisplayList, WorldSpriteRecordingBlendsOwnMotionAndKeepsCanonicalExact) {
     GfxFixture fixture(64, 48, 1.0f, true, 64, 48);
     auto       record = [&](float x, uint64_t generation, bool tagged, int cut, bool multiple_views = false) {
         gfx::BeginRecording();
@@ -1015,7 +1015,7 @@ TEST(GfxDisplayList, WorldSpriteRejectsReuseTeleportAndIncompatibleViews) {
     reject(after, scene, gfx::detail::Mat4{});
 }
 
-TEST(GfxMisc, PresentationCompositeKeepsMovingMeshAndClearsReusedTarget) {
+TEST(GfxGpuDisplayList, PresentationCompositeKeepsMovingMeshAndClearsReusedTarget) {
     GfxFixture fixture(64, 48, 1.0f, true, 64, 48);
     const auto target = gfx::NamedRenderTarget("moving-composite", 64, 48, true, true);
     ASSERT_NE(target, gfx::kNullTexture);
@@ -1102,7 +1102,7 @@ TEST(GfxMisc, PresentationCompositeKeepsMovingMeshAndClearsReusedTarget) {
     }
 }
 
-TEST(GfxMisc, PresentationCompositeDoesNotWriteTransparentDepth) {
+TEST(GfxGpuDisplayList, PresentationCompositeDoesNotWriteTransparentDepth) {
     GfxFixture fixture(64, 48, 1.0f, true, 64, 48);
     const auto texture = gfx::CreateTexture({2, 1});
     ASSERT_NE(texture, gfx::kNullTexture);
@@ -1147,7 +1147,7 @@ TEST(GfxMisc, PresentationCompositeDoesNotWriteTransparentDepth) {
     gfx::DestroyTexture(texture);
 }
 
-TEST(GfxMeshDc2, PresentationReplacementDoesNotInheritUiAnchor) {
+TEST(GfxGpuMeshDc2, PresentationReplacementDoesNotInheritUiAnchor) {
     for (const auto [width, height] : {
              std::pair{128, 72 },
              std::pair{72,  128}
@@ -1185,7 +1185,7 @@ TEST(GfxMeshDc2, PresentationReplacementDoesNotInheritUiAnchor) {
     }
 }
 
-TEST(GfxMisc, HostReplacementSuppressesOnlyTheTaggedMainDisplayGroup) {
+TEST(GfxGpuDisplayList, HostReplacementSuppressesOnlyTheTaggedMainDisplayGroup) {
     GfxOptions settings;
     settings.offscreen = true;
     settings.logical_width = 64;
@@ -1233,7 +1233,7 @@ TEST(GfxMisc, HostReplacementSuppressesOnlyTheTaggedMainDisplayGroup) {
     gfx::DestroyTexture(target);
 }
 
-TEST(GfxMisc, FilteredOutlineCopiesDoNotSamplePreviousPartOutsideBounds) {
+TEST(GfxGpuDisplayList, FilteredOutlineCopiesDoNotSamplePreviousPartOutsideBounds) {
     GfxOptions options;
     options.offscreen = true;
     options.logical_width = 64;

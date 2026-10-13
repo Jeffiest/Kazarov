@@ -8,7 +8,7 @@
 
 using namespace dc::test;
 
-TEST(GfxMeshDc2, SkippedAndInsertedPartsResynchronizeSurfacePairing) {
+TEST(GfxGpuMeshDc2, SkippedAndInsertedPartsResynchronizeSurfacePairing) {
     GfxOptions options;
     options.offscreen = true;
     GfxFixture                      fixture(64, 48, 1, options);
@@ -68,7 +68,7 @@ TEST(GfxMeshDc2, SkippedAndInsertedPartsResynchronizeSurfacePairing) {
     }
 }
 
-TEST(GfxMeshDc2, NewGeometryCannotClaimSurvivingSurfacePose) {
+TEST(GfxGpuMeshDc2, NewGeometryCannotClaimSurvivingSurfacePose) {
     GfxOptions options;
     options.offscreen = true;
     GfxFixture    fixture(64, 48, 1, options);

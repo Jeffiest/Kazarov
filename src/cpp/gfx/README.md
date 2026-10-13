@@ -347,13 +347,18 @@ renders one.
   enlarged composite writes depth. This is separate from keyed 2D interpolation.
   Outline callers provide full-visible-extent presentation vertices and scratch clears
   so models remain complete under interpolated rotation, skinning and display-only
-  camera motion. Each copy retains its texture-to-screen offset. Canonical clear/copy
+  camera motion. Shifted, filtered copies can sample beyond their scissors, so scratch
+  clears retain the full caller rectangle instead of a copy scissor. Each copy retains
+  its texture-to-screen offset. Canonical clear/copy
   rectangles stay unchanged; transparent texels in depth-writing replacements never
-  write depth. Borrowed display lists preserve presentation vertices and clear rectangles
-  while leaving resource retirement ownership with their source lists. GPU regressions
-  compare a rotating thin part at alpha 0.5 with an independently recorded horizontal
-  pose, and complete fixed-look outline pixels at alpha 1 and 0.5 with a direct full-extent
-  reference render.
+  write depth. Callers that copy recorded display lists must preserve
+  `presentation_vertices` and presentation clear rectangles, and leave resource
+  retirement ownership with the source list. The shared GPU regressions
+  `GfxGpuMeshDc2.RotatingThinOutlineKeepsIntermediateTips` and
+  `InterpolatedOutlineEscapesNewestPartCrop` cover interpolated outline extent;
+  `GfxGpuDisplayList.PresentationCompositeKeepsMovingMeshAndClearsReusedTarget`
+  and `PresentationCompositeDoesNotWriteTransparentDepth` cover replacement
+  composites, scratch clears and transparent depth rejection.
 - **Interpolation.** A mesh draw may carry a `MeshTransform` (projection, view, middle, model,
   local: `mvp` is their product) and is tagged with the current `InterpKey` (`SetInterpKey`). A
   display render at `alpha` < 1 with `options.previous` matches each tagged draw with the previous
@@ -487,3 +492,16 @@ parts require matching index topology, vertex count and immutable vertex bytes. 
 vertex-blending opt-in allows position/normal changes only within the same occurrence with
 unchanged UV/color attributes; moving immediate parts without a stable mesh identity do not
 resynchronize across occurrences. This preserves the caller's same-points/order contract.
+
+## Shared device test classification
+
+Shared recording, pairing, composite, Prog0, lifetime and frame-edge device tests use
+suite names beginning with `GfxGpu`, including parameterized suites. Consumers can
+exclude them with the single GoogleTest filter `-*GfxGpu*.*`, or CTest's
+`-E "(^|/)GfxGpu"`. Register that same family with the `gpu` label and a device-suitable
+timeout (30 seconds) when using label-based CI exclusion. Pure CPU display-list
+math remains in `GfxDisplayList`; `GfxMeshDc2.MeshConstantsKeepChroniclesSize` is
+also CPU-only. Existing renderer/texture GPU families retain their existing exclusions.
+A consumer that previously excluded only `^(GfxMisc|TexDecode)\.` must add
+`|(^|/)GfxGpu` to its CTest exclusion before adopting this dependency, or label
+this family and use `-LE gpu`. CPU display-list coverage continues to run.
