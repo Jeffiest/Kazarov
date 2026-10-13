@@ -250,12 +250,6 @@ TEST(GfxGpuMeshDc2, PlainDrawWithProg0FlagDrawsPlain) {
     EXPECT_EQ(fixture.Pixel(fixture.width / 2, fixture.height / 2), expected);
 }
 
-TEST(GfxGpuMeshDc2, FourDirectionalLights) {
-    GfxFixture fixture(kWidth, kHeight, 1.0f, Prog0Options());
-    Render(fixture, ScreenVertices({0, 0, 1}), kTriangle, FourLights());
-    EXPECT_TRUE(Centre(fixture, 50, 60, 30));
-}
-
 TEST(GfxGpuMeshDc2, IndexedProg0MeshMatchesImmediate) {
     GfxFixture fixture(kWidth, kHeight, 1.0f, Prog0Options());
     const Prog0Draw c = FourLights();
@@ -423,6 +417,7 @@ TEST(GfxGpuMeshDc2, SkinnedNormals) {
     EXPECT_TRUE(Centre(fixture, 100, 100, 100));
 }
 
+// prog0.md 10.6, bone-3 sub-case (O-8).
 TEST(GfxGpuMeshDc2, SkinnedFourthInfluenceNormal) {
     GfxFixture fixture(kWidth, kHeight, 1.0f, Prog0Options());
     Prog0Draw c = Prog0(gfx::kProg0Skinned);

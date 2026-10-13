@@ -172,7 +172,7 @@ Coverage ReadCoverage(GfxFixture &fixture) {
 } // namespace
 
 TEST(GfxGpuDisplayList, RecordingReservesPriorSizesWithoutRetainingCommands) {
-    GfxFixture          fixture(kWidth, kHeight, 1.0f, Prog0Options());
+    GfxFixture          fixture(kWidth, kHeight);
     gfx::Prog0Constants constants = {};
     constants.flags = gfx::kProg0Unlit;
     gfx::BeginRecording();
@@ -213,7 +213,7 @@ TEST(GfxGpuDisplayList, RecordingReservesPriorSizesWithoutRetainingCommands) {
 
 TEST(GfxGpuDisplayList, RecordingReservationToleratesSmallGrowthAndResetsWithRenderer) {
     {
-        GfxFixture          fixture(kWidth, kHeight, 1.0f, Prog0Options());
+        GfxFixture          fixture(kWidth, kHeight);
         gfx::Prog0Constants constants = {};
         gfx::BeginRecording();
         for (int i = 0; i < 129; ++i) {
@@ -232,7 +232,7 @@ TEST(GfxGpuDisplayList, RecordingReservationToleratesSmallGrowthAndResetsWithRen
         EXPECT_EQ(first->prog0_blocks.size(), 129u);
     }
     {
-        GfxFixture fixture(kWidth, kHeight, 1.0f, Prog0Options());
+        GfxFixture fixture(kWidth, kHeight);
         gfx::BeginRecording();
         auto empty = gfx::EndRecording();
         EXPECT_EQ(empty->entries.capacity(), 0u);

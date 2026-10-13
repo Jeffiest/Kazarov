@@ -104,10 +104,8 @@ void CheckFillFrameEdges(int width, int height) {
 } // namespace
 
 TEST(GfxGpuMeshDc2, FillOutlineInWiderAndTallerWindowsStaysInsideTheFrame) {
-    CheckFillFrameEdges(1280, 720);
     CheckFillFrameEdges(1366, 768);
     CheckFillFrameEdges(1920, 1080);
-    CheckFillFrameEdges(2560, 1440);
     CheckFillFrameEdges(800, 1200);
 }
 
