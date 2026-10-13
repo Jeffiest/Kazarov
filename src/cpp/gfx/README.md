@@ -336,7 +336,7 @@ renders one.
   loading screen took the window). `options.overlay` names a second list whose drawing entries run
   after the first's, uninterpolated, on `kMainTarget`, before the present: the host's FPS counter,
   which so never reaches a canonical image.
-- **Composite bounds.** A recorded `Draw2D` can supply `Presentation2D` replacement vertices and state for a
+- **Presentation composites.** A recorded `Draw2D` can supply `Presentation2D` replacement vertices and state for a
   screen-space composite of a model image that is redrawn during presentation. The
   replacement is copied at recording time and is used only by display replay; the
   canonical and immediate draw retain the original vertices and state. The
@@ -345,14 +345,15 @@ renders one.
   the canonical object's bounds cannot leak into the enlarged composite. Callers
   must preserve texture-to-screen mapping and reject transparent fragments when an
   enlarged composite writes depth. This is separate from keyed 2D interpolation.
-  `BeginComposite(key, bounds, visible, padding)` / `EndComposite()` group a part's
-  scratch clear and copies. Presentation copy scissors cover the union of its
-  two tick rectangles, expanded by the outline/filter padding and clipped to the visible
-  extent. Clears retain the caller's presentation rectangle: filtered, shifted copies can
-  sample beyond their scissor and must not pick up another part's stale scratch texels.
-  Copy scissors retain each copy's texture-to-screen offset. Full-size vertices
-  retain identical sampling; pixels outside the scissor incur no fragment work. Bounds
-  must enclose the part at each tick; keys must remain stable across adjacent ticks.
+  Outline callers provide full-visible-extent presentation vertices and scratch clears
+  so models remain complete under interpolated rotation, skinning and display-only
+  camera motion. Each copy retains its texture-to-screen offset. Canonical clear/copy
+  rectangles stay unchanged; transparent texels in depth-writing replacements never
+  write depth. Borrowed display lists preserve presentation vertices and clear rectangles
+  while leaving resource retirement ownership with their source lists. GPU regressions
+  compare a rotating thin part at alpha 0.5 with an independently recorded horizontal
+  pose, and complete fixed-look outline pixels at alpha 1 and 0.5 with a direct full-extent
+  reference render.
 - **Interpolation.** A mesh draw may carry a `MeshTransform` (projection, view, middle, model,
   local: `mvp` is their product) and is tagged with the current `InterpKey` (`SetInterpKey`). A
   display render at `alpha` < 1 with `options.previous` matches each tagged draw with the previous
@@ -479,3 +480,10 @@ what 1.3 supports (`spirv-val --target-env vulkan1.3` accepts all three).
   marking the pixels whose alpha passes, then a test against it, is the way.
 - GS mip LOD (TEX1 L and K) is ignored; filtering is standard trilinear over the supplied levels.
 - The device requirements are listed under "Device".
+
+Surface resynchronization requires matching material/range, handedness and part geometry
+before consuming a predecessor. Buffered meshes keep their stable mesh handle. Immediate
+parts require matching index topology, vertex count and immutable vertex bytes. An explicit
+vertex-blending opt-in allows position/normal changes only within the same occurrence with
+unchanged UV/color attributes; moving immediate parts without a stable mesh identity do not
+resynchronize across occurrences. This preserves the caller's same-points/order contract.
